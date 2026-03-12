@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trading Decision Tool</title>
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 15px;
+        background: #f7f7f7;
+    }
+    .container {
+        background: #fff;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        max-width: 480px;
+        margin: auto;
+    }
+    .row {
+        display: flex;
+        align-items: center;
+        margin-top: 12px;
+    }
+    label {
+        width: 40%;
+        font-weight: bold;
+        font-size: 16px;
+    }
+    input {
+        width: 60%;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+        font-size: 16px;
+    }
+    .result {
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 8px;
+        font-size: 18px;
+        font-weight: bold;
+        text-align: center;
+    }
+</style>
+
+<script>
+function calculate() {
+    let current = document.getElementById("current").value;
+    let low = document.getElementById("low").value;
+    let high = document.getElementById("high").value;
+    let buyers = document.getElementById("buyers").value;
+    let sellers = document.getElementById("sellers").value;
+
+    let priceDecision = "";
+    let ratioDecision = "";
+    let finalDecision = "";
+
+    // --- PRICE DECISION ONLY WHEN ALL 3 ARE ENTERED ---
+    if (current !== "" && low !== "" && high !== "") {
+        current = parseFloat(current);
+        low = parseFloat(low);
+        high = parseFloat(high);
+
+        if (Math.abs(current - low) / low <= 0.001) {
+            priceDecision = "BUY";
+        } else if (Math.abs(current - high) / high <= 0.001) {
+            priceDecision = "SELL";
+        } else {
+            priceDecision = "HOLD";
+        }
+    }
+
+    // --- BUYER/SELLER DECISION ONLY WHEN BOTH ENTERED ---
+    if (buyers !== "" && sellers !== "") {
+        buyers = parseFloat(buyers);
+        sellers = parseFloat(sellers);
+
+        if (buyers >= 2 * sellers) {
+            ratioDecision = "BUY";
+        } 
+        else if (sellers >= 2 * buyers) {
+            ratioDecision = "SELL";
+        } 
+        else if (buyers >= 1.7 * sellers) {
+            ratioDecision = "MONITOR BUY";
+        } 
+        else if (sellers >= 1.7 * buyers) {
+            ratioDecision = "MONITOR SELL";
+        } 
+        else {
+            ratioDecision = "HOLD";
+        }
+    }
+
+    // --- FINAL DECISION ONLY WHEN BOTH DECISIONS AVAILABLE ---
+    if (priceDecision !== "" && ratioDecision !== "") {
+
+        if (priceDecision === "BUY" && ratioDecision === "BUY") {
+            finalDecision = "BUY";
+        }
+        else if (priceDecision === "SELL" && ratioDecision === "SELL") {
+            finalDecision = "SELL";
+        }
+        else if (priceDecision === "BUY" && ratioDecision === "SELL") {
+            finalDecision = "SELL";
+        }
+        else if (priceDecision === "SELL" && ratioDecision === "BUY") {
+            finalDecision = "BUY";
+        }
+        else {
+            finalDecision = "HOLD";
+        }
+    }
+
+    // --- UPDATE UI ---
+    document.getElementById("priceResult").innerHTML =
+        priceDecision ? "Price Decision: " + priceDecision : "";
+
+    document.getElementById("ratioResult").innerHTML =
+        ratioDecision ? "Buyer/Seller Decision: " + ratioDecision : "";
+
+    document.getElementById("finalResult").innerHTML =
+        finalDecision ? "FINAL SIGNAL: " + finalDecision : "";
+
+    // Final signal color
+    document.getElementById("finalResult").style.background =
+        finalDecision === "BUY" ? "#c3f7c3" :
+        finalDecision === "SELL" ? "#f7c3c3" :
+        finalDecision === "HOLD" ? "#fff4c3" : "transparent";
+}
+</script>
+
+</head>
+<body>
+<div class="container">
+    <h2>📈 Trading Decision Tool</h2>
+
+    <div class="row">
+        <label>Current Price</label>
+        <input id="current" type="number" oninput="calculate()">
+    </div>
+
+    <div class="row">
+        <label>Predicted Low</label>
+        <input id="low" type="number" oninput="calculate()">
+    </div>
+
+    <div class="row">
+        <label>Predicted High</label>
+        <input id="high" type="number" oninput="calculate()">
+    </div>
+
+    <div id="priceResult" class="result"></div>
+
+    <div class="row">
+        <label>Buyer Count</label>
+        <input id="buyers" type="number" oninput="calculate()">
+    </div>
+
+    <div class="row">
+        <label>Seller Count</label>
+        <input id="sellers" type="number" oninput="calculate()">
+    </div>
+
+    <div id="ratioResult" class="result"></div>
+    <div id="finalResult" class="result"></div>
+
+</div>
+</body>
+</html>
