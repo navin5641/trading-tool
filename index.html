@@ -6,47 +6,76 @@
 <title>Trading Decision Tool</title>
 
 <style>
-    body {
-        font-family: Arial, sans-serif;
-        margin: 15px;
-        background: #f7f7f7;
-    }
+    body { font-family: Arial; margin: 15px; background:#f7f7f7; }
     .container {
-        background: #fff;
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        max-width: 480px;
-        margin: auto;
+        background:#fff; padding:20px; border-radius:12px;
+        max-width:480px; margin:auto;
+        box-shadow:0 0 10px rgba(0,0,0,0.1);
     }
-    .row {
-        display: flex;
-        align-items: center;
-        margin-top: 12px;
-    }
-    label {
-        width: 40%;
-        font-weight: bold;
-        font-size: 16px;
-    }
-    input {
-        width: 60%;
-        padding: 10px;
-        border-radius: 8px;
-        border: 1px solid #ccc;
-        font-size: 16px;
-    }
-    .result {
-        margin-top: 20px;
-        padding: 15px;
-        border-radius: 8px;
-        font-size: 18px;
-        font-weight: bold;
-        text-align: center;
+    .row { display:flex; align-items:center; margin-top:12px; }
+    label { width:40%; font-weight:bold; }
+    input { width:60%; padding:10px; border-radius:8px; border:1px solid #ccc; }
+    .result { margin-top:20px; padding:12px; border-radius:8px; text-align:center; font-weight:bold; }
+    button {
+        margin-top:20px; padding:12px; width:100%;
+        background:#007bff; color:white; border:none; border-radius:8px;
+        font-size:18px;
     }
 </style>
 
 <script>
+// ---- AUDIO ALERTS ----
+
+// Soft beep (monitor)
+const monitorSound = new Audio("data:audio/wav;base64,UklGRhQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQgAAAAA/////w==");
+
+// Positive chime (BUY)
+const buySound = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQgAAAAA////AAH//wD///8=");
+
+// Deep alert (SELL)
+const sellSound = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQgAAAAA////AP///wD8//8=");
+
+let soundEnabled = false;
+let lastFinal = "";
+
+// Required for mobile audio
+function enableSound() {
+    soundEnabled = true;
+    buySound.play();
+    monitorSound.play();
+    sellSound.play();
+    alert("Sound Enabled!");
+}
+
+// AUTO FETCH LOW/HIGH
+function fetchTargets() {
+    const url = "https://api.allorigins.win/raw?url=https://munafasutra.com/nse/tomorrow/NIFTY_50";
+
+    fetch(url)
+        .then(r => r.text())
+        .then(html => {
+            // Extract <div id="targets"> ... </div>
+            let divContent = html.match(/<div id="targets"[\\s\\S]*?<\\/div>/i);
+alert(divContent);
+            if (!divContent) return;
+
+            let text = divContent[0].replace(/<[^>]*>/g, " "); // remove HTML tags
+
+            // Extract downside & upside numbers
+            let match = text.match(/are\\s*([0-9.]+)\\s*on downside\\s*and\\s*([0-9.]+)\\s*on upside/i);
+            if (match) {
+                let low = match[1];
+                let high = match[2];
+
+                document.getElementById("low").value = low;
+                document.getElementById("high").value = high;
+
+                calculate();
+            }
+        })
+        .catch(err => console.log("Fetch error:", err));
+}
+
 function calculate() {
     let current = document.getElementById("current").value;
     let low = document.getElementById("low").value;
@@ -54,120 +83,88 @@ function calculate() {
     let buyers = document.getElementById("buyers").value;
     let sellers = document.getElementById("sellers").value;
 
-    let priceDecision = "";
-    let ratioDecision = "";
-    let finalDecision = "";
+    let price = "";
+    let ratio = "";
+    let final = "";
 
-    // --- PRICE DECISION ONLY WHEN ALL 3 ARE ENTERED ---
-    if (current !== "" && low !== "" && high !== "") {
+    // PRICE DECISION
+    if (current && low && high) {
         current = parseFloat(current);
         low = parseFloat(low);
         high = parseFloat(high);
 
-        if (Math.abs(current - low) / low <= 0.001) {
-            priceDecision = "BUY";
-        } else if (Math.abs(current - high) / high <= 0.001) {
-            priceDecision = "SELL";
-        } else {
-            priceDecision = "HOLD";
-        }
+        if (Math.abs(current - low)/low <= 0.001) price = "BUY";
+        else if (Math.abs(current - high)/high <= 0.001) price = "SELL";
+        else price = "HOLD";
     }
 
-    // --- BUYER/SELLER DECISION ONLY WHEN BOTH ENTERED ---
-    if (buyers !== "" && sellers !== "") {
+    // BUYER/SELLER DECISION
+    if (buyers && sellers) {
         buyers = parseFloat(buyers);
         sellers = parseFloat(sellers);
 
-        if (buyers >= 2 * sellers) {
-            ratioDecision = "BUY";
-        } 
-        else if (sellers >= 2 * buyers) {
-            ratioDecision = "SELL";
-        } 
-        else if (buyers >= 1.7 * sellers) {
-            ratioDecision = "MONITOR BUY";
-        } 
-        else if (sellers >= 1.7 * buyers) {
-            ratioDecision = "MONITOR SELL";
-        } 
-        else {
-            ratioDecision = "HOLD";
-        }
+        if (buyers >= 2*sellers) ratio = "BUY";
+        else if (sellers >= 2*buyers) ratio = "SELL";
+        else if (buyers >= 1.7*sellers) ratio = "MONITOR BUY";
+        else if (sellers >= 1.7*buyers) ratio = "MONITOR SELL";
+        else ratio = "HOLD";
     }
 
-    // --- FINAL DECISION ONLY WHEN BOTH DECISIONS AVAILABLE ---
-    if (priceDecision !== "" && ratioDecision !== "") {
-
-        if (priceDecision === "BUY" && ratioDecision === "BUY") {
-            finalDecision = "BUY";
-        }
-        else if (priceDecision === "SELL" && ratioDecision === "SELL") {
-            finalDecision = "SELL";
-        }
-        else if (priceDecision === "BUY" && ratioDecision === "SELL") {
-            finalDecision = "SELL";
-        }
-        else if (priceDecision === "SELL" && ratioDecision === "BUY") {
-            finalDecision = "BUY";
-        }
-        else {
-            finalDecision = "HOLD";
-        }
+    // FINAL DECISION
+    if (price && ratio) {
+        if (price==="BUY" && ratio==="BUY") final="BUY";
+        else if (price==="SELL" && ratio==="SELL") final="SELL";
+        else if (price==="BUY" && ratio==="SELL") final="SELL";
+        else if (price==="SELL" && ratio==="BUY") final="BUY";
+        else final="HOLD";
     }
 
-    // --- UPDATE UI ---
-    document.getElementById("priceResult").innerHTML =
-        priceDecision ? "Price Decision: " + priceDecision : "";
+    // SOUND LOGIC
+    if (soundEnabled && final !== "" && final !== lastFinal) {
+        if (final==="BUY") buySound.play();
+        else if (final==="SELL") sellSound.play();
+        else if (ratio.includes("MONITOR")) monitorSound.play();
+    }
 
-    document.getElementById("ratioResult").innerHTML =
-        ratioDecision ? "Buyer/Seller Decision: " + ratioDecision : "";
+    lastFinal = final;
 
-    document.getElementById("finalResult").innerHTML =
-        finalDecision ? "FINAL SIGNAL: " + finalDecision : "";
+    // UI UPDATES
+    document.getElementById("priceResult").innerHTML = price ? "Price Decision: "+price : "";
+    document.getElementById("ratioResult").innerHTML = ratio ? "Buyer/Seller Decision: "+ratio : "";
+    document.getElementById("finalResult").innerHTML = final ? "FINAL SIGNAL: "+final : "";
 
-    // Final signal color
     document.getElementById("finalResult").style.background =
-        finalDecision === "BUY" ? "#c3f7c3" :
-        finalDecision === "SELL" ? "#f7c3c3" :
-        finalDecision === "HOLD" ? "#fff4c3" : "transparent";
+        final==="BUY" ? "#c3f7c3" :
+        final==="SELL" ? "#f7c3c3" :
+        final==="HOLD" ? "#fff4c3" : "transparent";
 }
+
+// AUTO RUN on load
+window.onload = fetchTargets;
 </script>
-
 </head>
+
 <body>
+
 <div class="container">
-    <h2>📈 Trading Decision Tool</h2>
 
-    <div class="row">
-        <label>Current Price</label>
-        <input id="current" type="number" oninput="calculate()">
-    </div>
+<h2>📈 Trading Decision Tool</h2>
 
-    <div class="row">
-        <label>Predicted Low</label>
-        <input id="low" type="number" oninput="calculate()">
-    </div>
+<button onclick="enableSound()">🔊 ENABLE SOUND</button>
 
-    <div class="row">
-        <label>Predicted High</label>
-        <input id="high" type="number" oninput="calculate()">
-    </div>
+<div class="row"><label>Current Price</label><input id="current" type="number" oninput="calculate()"></div>
+<div class="row"><label>Predicted Low</label><input id="low" type="number" oninput="calculate()"></div>
+<div class="row"><label>Predicted High</label><input id="high" type="number" oninput="calculate()"></div>
 
-    <div id="priceResult" class="result"></div>
+<div id="priceResult" class="result"></div>
 
-    <div class="row">
-        <label>Buyer Count</label>
-        <input id="buyers" type="number" oninput="calculate()">
-    </div>
+<div class="row"><label>Buyer Count</label><input id="buyers" type="number" oninput="calculate()"></div>
+<div class="row"><label>Seller Count</label><input id="sellers" type="number" oninput="calculate()"></div>
 
-    <div class="row">
-        <label>Seller Count</label>
-        <input id="sellers" type="number" oninput="calculate()">
-    </div>
-
-    <div id="ratioResult" class="result"></div>
-    <div id="finalResult" class="result"></div>
+<div id="ratioResult" class="result"></div>
+<div id="finalResult" class="result"></div>
 
 </div>
+
 </body>
 </html>
