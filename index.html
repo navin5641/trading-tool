@@ -13,94 +13,81 @@
         box-shadow:0 0 10px rgba(0,0,0,0.1);
     }
     .row { display:flex; align-items:center; margin-top:12px; }
-    label { width:40%; font-weight:bold; }
-    input { width:60%; padding:10px; border-radius:8px; border:1px solid #ccc; }
+    label { width:40%; font-weight:bold; font-size:16px; }
+    input { width:60%; padding:10px; border-radius:8px; border:1px solid #ccc; font-size:16px; }
     .result { margin-top:20px; padding:12px; border-radius:8px; text-align:center; font-weight:bold; }
     button {
-        margin-top:20px; padding:12px; width:100%;
+        margin-top:20px; padding:14px; width:100%;
         background:#007bff; color:white; border:none; border-radius:8px;
         font-size:18px;
     }
 </style>
 
 <script>
-// ---- AUDIO ALERTS ----
+// ---------------- SOUND ALERTS ----------------
 
-// Soft beep (monitor)
 const monitorSound = new Audio("data:audio/wav;base64,UklGRhQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQgAAAAA/////w==");
-
-// Positive chime (BUY)
-const buySound = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQgAAAAA////AAH//wD///8=");
-
-// Deep alert (SELL)
-const sellSound = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQgAAAAA////AP///wD8//8=");
+const buySound     = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQgAAAAA////AAH//wD///8=");
+const sellSound    = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQgAAAAA////AP///wD8//8=");
 
 let soundEnabled = false;
 let lastFinal = "";
 
-// Required for mobile audio
 function enableSound() {
     soundEnabled = true;
-    buySound.play();
-    monitorSound.play();
-    sellSound.play();
-    alert("Sound Enabled!");
 }
 
-// AUTO FETCH LOW/HIGH
-function fetchTargets() {
-    const url = "https://api.allorigins.win/raw?url=https://munafasutra.com/nse/tomorrow/NIFTY_50";
+// ---------------- AUTO FETCH LOW/HIGH ----------------
 
-    fetch(url)
+function fetchTargets() {
+    const workerURL = "https://nifty50fetch.navin5641.workers.dev/?t=" + Date.now();
+
+    fetch(workerURL)
         .then(r => r.text())
         .then(html => {
-            // Extract <div id="targets"> ... </div>
-            let divContent = html.match(/<div id="targets"[\\s\\S]*?<\\/div>/i);
-alert(divContent);
-            if (!divContent) return;
+            const block = html.match(/<div id="targets"[\s\S]*?<\/div>/i);
+            if (!block) return;
 
-            let text = divContent[0].replace(/<[^>]*>/g, " "); // remove HTML tags
+            let cleaned = block[0].replace(/<[^>]*>/g, " ");
 
-            // Extract downside & upside numbers
-            let match = text.match(/are\\s*([0-9.]+)\\s*on downside\\s*and\\s*([0-9.]+)\\s*on upside/i);
-            if (match) {
-                let low = match[1];
-                let high = match[2];
+            const pattern = /are\s*([0-9.]+)\s*on downside\s*and\s*([0-9.]+)\s*on upside/i;
+            const m = cleaned.match(pattern);
 
-                document.getElementById("low").value = low;
-                document.getElementById("high").value = high;
+            if (!m) return;
 
-                calculate();
-            }
+            document.getElementById("low").value = m[1];
+            document.getElementById("high").value = m[2];
+
+            calculate();
         })
-        .catch(err => console.log("Fetch error:", err));
+        .catch(err => console.error("Fetch error:", err));
 }
+
+// ---------------- CALC LOGIC ----------------
 
 function calculate() {
     let current = document.getElementById("current").value;
-    let low = document.getElementById("low").value;
-    let high = document.getElementById("high").value;
-    let buyers = document.getElementById("buyers").value;
+    let low     = document.getElementById("low").value;
+    let high    = document.getElementById("high").value;
+    let buyers  = document.getElementById("buyers").value;
     let sellers = document.getElementById("sellers").value;
 
-    let price = "";
-    let ratio = "";
-    let final = "";
+    let price = "", ratio = "", final = "";
 
-    // PRICE DECISION
+    // Price Decision
     if (current && low && high) {
         current = parseFloat(current);
-        low = parseFloat(low);
-        high = parseFloat(high);
+        low     = parseFloat(low);
+        high    = parseFloat(high);
 
         if (Math.abs(current - low)/low <= 0.001) price = "BUY";
         else if (Math.abs(current - high)/high <= 0.001) price = "SELL";
         else price = "HOLD";
     }
 
-    // BUYER/SELLER DECISION
+    // Buyer/Seller Decision
     if (buyers && sellers) {
-        buyers = parseFloat(buyers);
+        buyers  = parseFloat(buyers);
         sellers = parseFloat(sellers);
 
         if (buyers >= 2*sellers) ratio = "BUY";
@@ -110,16 +97,16 @@ function calculate() {
         else ratio = "HOLD";
     }
 
-    // FINAL DECISION
+    // Final Decision
     if (price && ratio) {
         if (price==="BUY" && ratio==="BUY") final="BUY";
         else if (price==="SELL" && ratio==="SELL") final="SELL";
-        else if (price==="BUY" && ratio==="SELL") final="SELL";
-        else if (price==="SELL" && ratio==="BUY") final="BUY";
+        else if (price==="BUY" && ratio==="SELL")  final="SELL";
+        else if (price==="SELL" && ratio==="BUY")  final="BUY";
         else final="HOLD";
     }
 
-    // SOUND LOGIC
+    // Sound Alerts
     if (soundEnabled && final !== "" && final !== lastFinal) {
         if (final==="BUY") buySound.play();
         else if (final==="SELL") sellSound.play();
@@ -128,10 +115,10 @@ function calculate() {
 
     lastFinal = final;
 
-    // UI UPDATES
-    document.getElementById("priceResult").innerHTML = price ? "Price Decision: "+price : "";
-    document.getElementById("ratioResult").innerHTML = ratio ? "Buyer/Seller Decision: "+ratio : "";
-    document.getElementById("finalResult").innerHTML = final ? "FINAL SIGNAL: "+final : "";
+    // UI updates
+    document.getElementById("priceResult").innerHTML = price ? "Price Decision: " + price : "";
+    document.getElementById("ratioResult").innerHTML = ratio ? "Buyer/Seller Decision: " + ratio : "";
+    document.getElementById("finalResult").innerHTML = final ? "FINAL SIGNAL: " + final : "";
 
     document.getElementById("finalResult").style.background =
         final==="BUY" ? "#c3f7c3" :
@@ -139,13 +126,11 @@ function calculate() {
         final==="HOLD" ? "#fff4c3" : "transparent";
 }
 
-// AUTO RUN on load
 window.onload = fetchTargets;
 </script>
 </head>
 
 <body>
-
 <div class="container">
 
 <h2>📈 Trading Decision Tool</h2>
@@ -165,6 +150,5 @@ window.onload = fetchTargets;
 <div id="finalResult" class="result"></div>
 
 </div>
-
 </body>
 </html>
