@@ -87,7 +87,7 @@
     async function fetchMarketfeedQuote(){
       try{
         // Call your Cloudflare Worker URL instead of Dhan directly
-        const res=await fetch("https://your-worker-name.username.workers.dev");
+        const res=await fetch("https://dhan-proxy.navin5641.workers.dev/");
         const data=await res.json();
 
         // Example: pick the first instrument returned
