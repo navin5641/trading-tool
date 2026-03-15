@@ -84,46 +84,32 @@
       document.getElementById("lastUpdated").textContent=new Date().toLocaleString();
     }
 
-    async function fetchDhanQuote(){
+    async function fetchMarketfeedQuote(){
       try{
-        const res=await fetch("https://api.dhan.co/quote?symbol=NIFTY",{
-          headers:{
-            "Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzczNjYxMTk3LCJpYXQiOjE3NzM1NzQ3OTcsInRva2VuQ29uc3VtZXJUeXBlIjoiU0VMRiIsIndlYmhvb2tVcmwiOiIiLCJkaGFuQ2xpZW50SWQiOiIxMTEwODU3ODk4In0.sBMlssXOtzXlW1bLQaueXqZf8l5DIRoCSAKieV6m9gcOPcw8hiXFk1kWmZ7wR4khS3Eg1uhMhTzBXPyIN2IlVQ",
-            "X-API-KEY":"c3162800"
-          }
-        });
+        // Call your Cloudflare Worker URL instead of Dhan directly
+        const res=await fetch("https://your-worker-name.username.workers.dev");
         const data=await res.json();
-        document.getElementById("low").value=data.low;
-        document.getElementById("high").value=data.high;
-        document.getElementById("current").value=data.lastPrice;
-        updatePriceCalculation();
-        updateTimestamp();
-      }catch(err){console.error("Error fetching Dhan quote:",err);}
-    }
 
-    async function fetchDhanOrderBook(){
-      try{
-        const res=await fetch("https://api.dhan.co/marketdepth?symbol=NIFTY",{
-          headers:{
-            "Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzczNjYxMTk3LCJpYXQiOjE3NzM1NzQ3OTcsInRva2VuQ29uc3VtZXJUeXBlIjoiU0VMRiIsIndlYmhvb2tVcmwiOiIiLCJkaGFuQ2xpZW50SWQiOiIxMTEwODU3ODk4In0.sBMlssXOtzXlW1bLQaueXqZf8l5DIRoCSAKieV6m9gcOPcw8hiXFk1kWmZ7wR4khS3Eg1uhMhTzBXPyIN2IlVQ",
-            "X-API-KEY":"c3162800"
-          }
-        });
-        const data=await res.json();
-        const totalBid=data.marketDepth.totalBuyQuantity;
-        const totalAsk=data.marketDepth.totalSellQuantity;
-        document.getElementById("buyers").value=totalBid;
-        document.getElementById("sellers").value=totalAsk;
+        // Example: pick the first instrument returned
+        const niftyData=data.data.NSE_FNO["51714"]; // Replace with actual instrument ID
+
+        // Update inputs
+        document.getElementById("low").value=niftyData.ohlc.low;
+        document.getElementById("high").value=niftyData.ohlc.high;
+        document.getElementById("current").value=niftyData.last_price;
+        updatePriceCalculation();
+
+        document.getElementById("buyers").value=niftyData.buy_quantity;
+        document.getElementById("sellers").value=niftyData.sell_quantity;
         updateBuyersSellers();
+
         updateTimestamp();
-      }catch(err){console.error("Error fetching Dhan order book:",err);}
+      }catch(err){console.error("Error fetching marketfeed quote:",err);}
     }
 
     window.onload=()=>{
-      fetchDhanQuote();
-      fetchDhanOrderBook();
-      setInterval(fetchDhanQuote,10000);     // refresh price every 1 min
-      setInterval(fetchDhanOrderBook,10000);  // refresh order book every 5 sec
+      fetchMarketfeedQuote();
+      setInterval(fetchMarketfeedQuote,10000); // refresh every 10s
     };
   </script>
 </body>
