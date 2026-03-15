@@ -3,18 +3,92 @@
 <head>
   <meta charset="UTF-8">
   <title>Nifty Futures Order Book (Dhan)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body{font-family:Arial,sans-serif;background:#f9f9f9;color:#333;margin:0}
-    header,footer{text-align:center;padding:.5rem}
-    header{background:#4CAF50;color:#fff}
-    footer{background:#333;color:#fff}
-    main{display:flex;flex-direction:column;align-items:center;padding:.5rem}
-    section{width:95%;max-width:500px;background:#fff;border-radius:8px;padding:.5rem;margin:.5rem 0;box-shadow:0 2px 5px rgba(0,0,0,.1)}
-    .form-group{display:flex;align-items:center;margin:.25rem 0}
-    .form-group label{flex:0 0 70px;font-weight:bold;margin-right:.5rem}
-    .form-group input{flex:1;padding:.3rem;border:1px solid #ccc;border-radius:4px}
-    .result-box{background:#f0f0f0;padding:.5rem;border-radius:6px;margin-top:.25rem}
-    #decision{font-weight:bold;font-size:1.2em;text-align:center}
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f4f6f9;
+      color: #333;
+      margin: 0;
+    }
+
+    header, footer {
+      text-align: center;
+      padding: 1rem;
+    }
+
+    header {
+      background: linear-gradient(135deg, #4CAF50, #2E7D32);
+      color: #fff;
+    }
+
+    footer {
+      background: #222;
+      color: #ccc;
+      font-size: 0.9em;
+    }
+
+    main {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1rem;
+    }
+
+    section {
+      width: 100%;
+      max-width: 480px;
+      background: #fff;
+      border-radius: 12px;
+      padding: 1rem;
+      margin: 0.75rem 0;
+      box-shadow: 0 4px 12px rgba(0,0,0,.08);
+      transition: transform 0.2s ease;
+    }
+    section:hover {
+      transform: translateY(-2px);
+    }
+
+    h2 {
+      margin-top: 0;
+      font-size: 1.2em;
+      color: #4CAF50;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      margin: 0.5rem 0;
+    }
+
+    .form-group label {
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .form-group input {
+      padding: 0.8rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 1.1em;
+    }
+
+    .result-box {
+      background: #f9fafb;
+      padding: 0.75rem;
+      border-radius: 8px;
+      margin-top: 0.5rem;
+      font-size: 1em;
+    }
+
+    #decision {
+      font-weight: bold;
+      font-size: 1.4em;
+      text-align: center;
+      transition: background 0.3s ease, color 0.3s ease;
+      padding: 0.5rem;
+      border-radius: 6px;
+    }
   </style>
 </head>
 <body>
@@ -74,10 +148,26 @@
     function updateDecision(){
       const decision=document.getElementById('decision');
       if(p1Value!==null&&p2Value!==null){
-        if(p2Value>67&&(p1Value<10||p1Value>90)) decision.textContent="BUY";
-        else if(p2Value<33&&(p1Value<10||p1Value>90)) decision.textContent="SELL";
-        else decision.textContent="No Action";
-      } else decision.textContent="Waiting...";
+        if(p2Value>67&&(p1Value<10||p1Value>90)){
+          decision.textContent="BUY";
+          decision.style.background="#d4edda";
+          decision.style.color="#155724";
+        }
+        else if(p2Value<33&&(p1Value<10||p1Value>90)){
+          decision.textContent="SELL";
+          decision.style.background="#f8d7da";
+          decision.style.color="#721c24";
+        }
+        else {
+          decision.textContent="No Action";
+          decision.style.background="#fff3cd";
+          decision.style.color="#856404";
+        }
+      } else {
+        decision.textContent="Waiting...";
+        decision.style.background="";
+        decision.style.color="";
+      }
     }
 
     function updateTimestamp(){
@@ -86,21 +176,19 @@
 
     async function fetchMarketfeedQuote(){
       try{
-        // Call your Cloudflare Worker URL instead of Dhan directly
         const res=await fetch("https://dhan-proxy.navin5641.workers.dev/");
         const data=await res.json();
-
-        // Example: pick the first instrument returned
         const niftyData=data.data.NSE_FNO["51714"]; // Replace with actual instrument ID
 
-        // Update inputs
-        document.getElementById("low").value=niftyData.ohlc.low;
-        document.getElementById("high").value=niftyData.ohlc.high;
-        document.getElementById("current").value=niftyData.last_price;
+        if(niftyData?.ohlc){
+          document.getElementById("low").value=niftyData.ohlc.low ?? "";
+          document.getElementById("high").value=niftyData.ohlc.high ?? "";
+        }
+        document.getElementById("current").value=niftyData.last_price ?? "";
         updatePriceCalculation();
 
-        document.getElementById("buyers").value=niftyData.buy_quantity;
-        document.getElementById("sellers").value=niftyData.sell_quantity;
+        document.getElementById("buyers").value=niftyData.buy_quantity ?? "";
+        document.getElementById("sellers").value=niftyData.sell_quantity ?? "";
         updateBuyersSellers();
 
         updateTimestamp();
