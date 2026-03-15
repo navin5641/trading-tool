@@ -1,154 +1,130 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Trading Decision Tool</title>
-
-<style>
-    body { font-family: Arial; margin: 15px; background:#f7f7f7; }
-    .container {
-        background:#fff; padding:20px; border-radius:12px;
-        max-width:480px; margin:auto;
-        box-shadow:0 0 10px rgba(0,0,0,0.1);
-    }
-    .row { display:flex; align-items:center; margin-top:12px; }
-    label { width:40%; font-weight:bold; font-size:16px; }
-    input { width:60%; padding:10px; border-radius:8px; border:1px solid #ccc; font-size:16px; }
-    .result { margin-top:20px; padding:12px; border-radius:8px; text-align:center; font-weight:bold; }
-    button {
-        margin-top:20px; padding:14px; width:100%;
-        background:#007bff; color:white; border:none; border-radius:8px;
-        font-size:18px;
-    }
-</style>
-
-<script>
-// ---------------- SOUND ALERTS ----------------
-
-const monitorSound = new Audio("data:audio/wav;base64,UklGRhQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQgAAAAA/////w==");
-const buySound     = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQgAAAAA////AAH//wD///8=");
-const sellSound    = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQgAAAAA////AP///wD8//8=");
-
-let soundEnabled = false;
-let lastFinal = "";
-
-function enableSound() {
-    soundEnabled = true;
-}
-
-// ---------------- AUTO FETCH LOW/HIGH ----------------
-
-function fetchTargets() {
-    const workerURL = "https://nifty50fetch.navin5641.workers.dev/?t=" + Date.now();
-
-    fetch(workerURL)
-        .then(r => r.text())
-        .then(html => {
-            const block = html.match(/<div id="targets"[\s\S]*?<\/div>/i);
-            if (!block) return;
-
-            let cleaned = block[0].replace(/<[^>]*>/g, " ");
-
-            const pattern = /are\s*([0-9.]+)\s*on downside\s*and\s*([0-9.]+)\s*on upside/i;
-            const m = cleaned.match(pattern);
-
-            if (!m) return;
-
-            document.getElementById("low").value = m[1];
-            document.getElementById("high").value = m[2];
-
-            calculate();
-        })
-        .catch(err => console.error("Fetch error:", err));
-}
-
-// ---------------- CALC LOGIC ----------------
-
-function calculate() {
-    let current = document.getElementById("current").value;
-    let low     = document.getElementById("low").value;
-    let high    = document.getElementById("high").value;
-    let buyers  = document.getElementById("buyers").value;
-    let sellers = document.getElementById("sellers").value;
-
-    let price = "", ratio = "", final = "";
-
-    // Price Decision
-    if (current && low && high) {
-        current = parseFloat(current);
-        low     = parseFloat(low);
-        high    = parseFloat(high);
-
-        if (Math.abs(current - low)/low <= 0.001) price = "BUY";
-        else if (Math.abs(current - high)/high <= 0.001) price = "SELL";
-        else price = "HOLD";
-    }
-
-    // Buyer/Seller Decision
-    if (buyers && sellers) {
-        buyers  = parseFloat(buyers);
-        sellers = parseFloat(sellers);
-
-        if (buyers >= 2*sellers) ratio = "BUY";
-        else if (sellers >= 2*buyers) ratio = "SELL";
-        else if (buyers >= 1.7*sellers) ratio = "MONITOR BUY";
-        else if (sellers >= 1.7*buyers) ratio = "MONITOR SELL";
-        else ratio = "HOLD";
-    }
-
-    // Final Decision
-    if (price && ratio) {
-        if (price==="BUY" && ratio==="BUY") final="BUY";
-        else if (price==="SELL" && ratio==="SELL") final="SELL";
-        else if (price==="BUY" && ratio==="SELL")  final="SELL";
-        else if (price==="SELL" && ratio==="BUY")  final="BUY";
-        else final="HOLD";
-    }
-
-    // Sound Alerts
-    if (soundEnabled && final !== "" && final !== lastFinal) {
-        if (final==="BUY") buySound.play();
-        else if (final==="SELL") sellSound.play();
-        else if (ratio.includes("MONITOR")) monitorSound.play();
-    }
-
-    lastFinal = final;
-
-    // UI updates
-    document.getElementById("priceResult").innerHTML = price ? "Price Decision: " + price : "";
-    document.getElementById("ratioResult").innerHTML = ratio ? "Buyer/Seller Decision: " + ratio : "";
-    document.getElementById("finalResult").innerHTML = final ? "FINAL SIGNAL: " + final : "";
-
-    document.getElementById("finalResult").style.background =
-        final==="BUY" ? "#c3f7c3" :
-        final==="SELL" ? "#f7c3c3" :
-        final==="HOLD" ? "#fff4c3" : "transparent";
-}
-
-window.onload = fetchTargets;
-</script>
+  <meta charset="UTF-8">
+  <title>Nifty Futures Order Book (Dhan)</title>
+  <style>
+    body{font-family:Arial,sans-serif;background:#f9f9f9;color:#333;margin:0}
+    header,footer{text-align:center;padding:.5rem}
+    header{background:#4CAF50;color:#fff}
+    footer{background:#333;color:#fff}
+    main{display:flex;flex-direction:column;align-items:center;padding:.5rem}
+    section{width:95%;max-width:500px;background:#fff;border-radius:8px;padding:.5rem;margin:.5rem 0;box-shadow:0 2px 5px rgba(0,0,0,.1)}
+    .form-group{display:flex;align-items:center;margin:.25rem 0}
+    .form-group label{flex:0 0 70px;font-weight:bold;margin-right:.5rem}
+    .form-group input{flex:1;padding:.3rem;border:1px solid #ccc;border-radius:4px}
+    .result-box{background:#f0f0f0;padding:.5rem;border-radius:6px;margin-top:.25rem}
+    #decision{font-weight:bold;font-size:1.2em;text-align:center}
+  </style>
 </head>
-
 <body>
-<div class="container">
+  <header><h1>Nifty Futures Order Book (Dhan)</h1></header>
+  <main>
+    <section>
+      <h2>Price Calculation</h2>
+      <div class="form-group"><label>Low</label><input type="number" id="low"></div>
+      <div class="form-group"><label>Current</label><input type="number" id="current"></div>
+      <div class="form-group"><label>High</label><input type="number" id="high"></div>
+      <div class="result-box"><strong>P1 (%):</strong> <span id="p1">0%</span></div>
+    </section>
 
-<h2>📈 Trading Decision Tool</h2>
+    <section>
+      <h2>Buyers & Sellers</h2>
+      <div class="form-group"><label>Buyers</label><input type="number" id="buyers"></div>
+      <div class="form-group"><label>Sellers</label><input type="number" id="sellers"></div>
+      <div class="result-box"><strong>P2 (%):</strong> <span id="p2">0%</span></div>
+    </section>
 
-<button onclick="enableSound()">🔊 ENABLE SOUND</button>
+    <section>
+      <h2>Decision</h2>
+      <div class="result-box">
+        <strong>Decision:</strong> <span id="decision">Waiting...</span><br>
+        <small>Last Updated: <span id="lastUpdated">--</span></small>
+      </div>
+    </section>
+  </main>
+  <footer><p>© 2026 My GitHub Pages Site</p></footer>
 
-<div class="row"><label>Current Price</label><input id="current" type="number" oninput="calculate()"></div>
-<div class="row"><label>Predicted Low</label><input id="low" type="number" oninput="calculate()"></div>
-<div class="row"><label>Predicted High</label><input id="high" type="number" oninput="calculate()"></div>
+  <script>
+    let p1Value=null,p2Value=null;
 
-<div id="priceResult" class="result"></div>
+    function updatePriceCalculation(){
+      const low=parseFloat(document.getElementById('low').value),
+            current=parseFloat(document.getElementById('current').value),
+            high=parseFloat(document.getElementById('high').value);
+      if(!isNaN(low)&&!isNaN(current)&&!isNaN(high)){
+        const diff=high-low;
+        p1Value=diff!==0?((current-low)/diff)*100:0;
+        document.getElementById('p1').textContent=p1Value.toFixed(2)+"%";
+      }
+      updateDecision();
+    }
 
-<div class="row"><label>Buyer Count</label><input id="buyers" type="number" oninput="calculate()"></div>
-<div class="row"><label>Seller Count</label><input id="sellers" type="number" oninput="calculate()"></div>
+    function updateBuyersSellers(){
+      const buyers=parseFloat(document.getElementById('buyers').value),
+            sellers=parseFloat(document.getElementById('sellers').value);
+      if(!isNaN(buyers)&&!isNaN(sellers)){
+        const total=buyers+sellers;
+        p2Value=total!==0?(buyers/total)*100:0;
+        document.getElementById('p2').textContent=p2Value.toFixed(2)+"%";
+      }
+      updateDecision();
+    }
 
-<div id="ratioResult" class="result"></div>
-<div id="finalResult" class="result"></div>
+    function updateDecision(){
+      const decision=document.getElementById('decision');
+      if(p1Value!==null&&p2Value!==null){
+        if(p2Value>67&&(p1Value<10||p1Value>90)) decision.textContent="BUY";
+        else if(p2Value<33&&(p1Value<10||p1Value>90)) decision.textContent="SELL";
+        else decision.textContent="No Action";
+      } else decision.textContent="Waiting...";
+    }
 
-</div>
+    function updateTimestamp(){
+      document.getElementById("lastUpdated").textContent=new Date().toLocaleString();
+    }
+
+    async function fetchDhanQuote(){
+      try{
+        const res=await fetch("https://api.dhan.co/quote?symbol=NIFTY",{
+          headers:{
+            "Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzczNjYxMTk3LCJpYXQiOjE3NzM1NzQ3OTcsInRva2VuQ29uc3VtZXJUeXBlIjoiU0VMRiIsIndlYmhvb2tVcmwiOiIiLCJkaGFuQ2xpZW50SWQiOiIxMTEwODU3ODk4In0.sBMlssXOtzXlW1bLQaueXqZf8l5DIRoCSAKieV6m9gcOPcw8hiXFk1kWmZ7wR4khS3Eg1uhMhTzBXPyIN2IlVQ",
+            "X-API-KEY":"c3162800"
+          }
+        });
+        const data=await res.json();
+        document.getElementById("low").value=data.low;
+        document.getElementById("high").value=data.high;
+        document.getElementById("current").value=data.lastPrice;
+        updatePriceCalculation();
+        updateTimestamp();
+      }catch(err){console.error("Error fetching Dhan quote:",err);}
+    }
+
+    async function fetchDhanOrderBook(){
+      try{
+        const res=await fetch("https://api.dhan.co/marketdepth?symbol=NIFTY",{
+          headers:{
+            "Authorization":"Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzczNjYxMTk3LCJpYXQiOjE3NzM1NzQ3OTcsInRva2VuQ29uc3VtZXJUeXBlIjoiU0VMRiIsIndlYmhvb2tVcmwiOiIiLCJkaGFuQ2xpZW50SWQiOiIxMTEwODU3ODk4In0.sBMlssXOtzXlW1bLQaueXqZf8l5DIRoCSAKieV6m9gcOPcw8hiXFk1kWmZ7wR4khS3Eg1uhMhTzBXPyIN2IlVQ",
+            "X-API-KEY":"c3162800"
+          }
+        });
+        const data=await res.json();
+        const totalBid=data.marketDepth.totalBuyQuantity;
+        const totalAsk=data.marketDepth.totalSellQuantity;
+        document.getElementById("buyers").value=totalBid;
+        document.getElementById("sellers").value=totalAsk;
+        updateBuyersSellers();
+        updateTimestamp();
+      }catch(err){console.error("Error fetching Dhan order book:",err);}
+    }
+
+    window.onload=()=>{
+      fetchDhanQuote();
+      fetchDhanOrderBook();
+      setInterval(fetchDhanQuote,10000);     // refresh price every 1 min
+      setInterval(fetchDhanOrderBook,10000);  // refresh order book every 5 sec
+    };
+  </script>
 </body>
 </html>
